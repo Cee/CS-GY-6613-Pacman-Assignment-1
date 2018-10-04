@@ -57,38 +57,72 @@ class BFSAgent(Agent):
     # GetAction Function: Called with every frame
     def getAction(self, state):
         
-        # Ensure state is not None
+        # Ensure initial state is not None
         if not state:
+            return Directions.STOP
+        # Ensure initial state will not be in a lost
+        if state.isLose():
             return Directions.STOP
         # Goal test for initial state, which is the solution
         if state.isWin():
             return Directions.STOP
 
-        # Use FIFO queue to keep the search area
-        # where we store a path for returning the second element of 
-        # the path array as the next step
+        # Use FIFO queue to keep the search area, where we store
+        # a path to the current state
         queue = []
-        queue.insert(0, [(Directions.STOP, state)])
 
-        path = self.bfs(queue, explored, Directions.STOP, [(Directions.STOP, state)])
-        return path[1][0] if len(path) >= 2 else Directions.STOP
+        # Since there's a really low possibilty that state would be the
+        # same in Pacman, I removed "explored" set here.
+        # explored = Set()
 
-    def bfs(self, queue, explored, init_action, init_path):
-        action = init_action
-        path = init_path
+        action = self.bfs(queue, state)
+        return action
+
+    def bfs(self, queue, init_state):
+        # Get initial actions for initial state
+        init_actions = init_state.getLegalPacmanActions()
+        for action in init_actions:
+            queue.insert(0, [(0, action, init_state)]) # (depth, prev_action, prev_state)
+
         while len(queue) != 0:
-            path = queue.pop()
-            state = path[-1][1]
-            if state.isLose():
+            path = queue[-1]
+            (depth, prev_action, prev_state) = path[-1]
+            curr_state = prev_state.generatePacmanSuccessor(prev_action)
+            if curr_state == None:
+                # Running out of `generatePacmanSuccessor`
+                break
+            if curr_state.isWin():
+                return path[0][1]
+            if curr_state.isLose():
+                _ = queue.pop()
                 continue
-            for action in state.getLegalPacmanActions():
-                next_state = state.generatePacmanSuccessor(action)
-                next_path = path + [(action, next_state)]
-                if (next_state) and (next_path not in queue):
-                    if next_state.isWin():
-                        return next_path
-                    queue.insert(0, next_path)
-        return path
+            # No win or lose, generate next actions
+            curr_actions = curr_state.getLegalPacmanActions()
+            for action in curr_actions:
+                queue.insert(0, path + [(depth + 1, action, curr_state)])
+            # Remove this node from the queue
+            _ = queue.pop()
+
+        if len(queue) == 0:
+            return Directions.STOP
+        # Still have elements
+        pq = []
+        for path in queue:
+            action = path[0][1]
+            depth = path[-1][0]
+            state = path[-1][2]
+            self.append(pq, (action, self.f(depth, state)))
+        return self.pop(pq)[0]
+
+    def f(self, depth, state):
+        return depth + admissibleHeuristic(state);
+
+    def append(self, pq, node):
+        pq.append(node)
+
+    def pop(self, pq):
+        pq.sort(key = lambda node: -node[-1])
+        return pq.pop()
 
 class DFSAgent(Agent):
     # Initialization Function: Called one time when the game starts
@@ -98,34 +132,67 @@ class DFSAgent(Agent):
     # GetAction Function: Called with every frame
     def getAction(self, state):
 
-        # Ensure state is not None
+        # Ensure initial state is not None
         if not state:
+            return Directions.STOP
+        # Ensure initial state will not be in a lost
+        if state.isLose():
             return Directions.STOP
         # Goal test for initial state, which is the solution
         if state.isWin():
             return Directions.STOP
         
-        # Use FILO/LIFO queue / stack
+        # Use LIFO queue / stack
         stack = []
-        stack.append([(Directions.STOP, state)])
 
-        path = self.dfs(stack)
-        return path[1][0] if len(path) >= 2 else Directions.STOP
+        action = self.dfs(stack, state)
+        return action
 
-    def dfs(self, stack):
+    def dfs(self, stack, init_state):
+        # Get initial actions for initial state
+        init_actions = init_state.getLegalPacmanActions()
+        for action in reversed(init_actions):
+            stack.append([(0, action, init_state)]) # (depth, prev_action, prev_state)
+
         while len(stack) != 0:
-            path = stack.pop()
-            state = path[-1][1]
-            for action in state.getLegalPacmanActions():
-                next_state = state.generatePacmanSuccessor(action)
-                next_path = path + [(action, next_state)]
-                if (next_state):
-                    if next_state.isWin():
-                        return next_path
-                    if next_state.isLose():
-                        continue
-                    stack.append(next_path)
-        return path
+            path = stack[-1]
+            (depth, prev_action, prev_state) = path[-1]
+            curr_state = prev_state.generatePacmanSuccessor(prev_action)
+            if curr_state == None:
+                # Running out of `generatePacmanSuccessor`
+                break
+            if curr_state.isWin():
+                return path[0][1]
+            if curr_state.isLose():
+                _ = stack.pop()
+                continue
+            # No win or lose, generate next actions
+            curr_actions = curr_state.getLegalPacmanActions()
+            for action in reversed(curr_actions):
+                stack.append(path + [(depth + 1, action, curr_state)])
+            # Remove this node from the stack
+            _ = stack.pop()
+
+        if len(stack) == 0:
+            return Directions.STOP
+        # Still have elements
+        pq = []
+        for path in stack:
+            action = path[0][1]
+            depth = path[-1][0]
+            state = path[-1][2]
+            self.append(pq, (action, self.f(depth, state)))
+        return self.pop(pq)[0]
+
+    def f(self, depth, state):
+        return depth + admissibleHeuristic(state);
+
+    def append(self, pq, node):
+        pq.append(node)
+
+    def pop(self, pq):
+        pq.sort(key = lambda node: -node[-1])
+        return pq.pop()
 
 class AStarAgent(Agent):
     # Initialization Function: Called one time when the game starts
