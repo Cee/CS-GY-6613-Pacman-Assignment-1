@@ -16,7 +16,6 @@ from pacman import Directions
 from game import Agent
 from heuristics import *
 import random
-import heapq
 
 class RandomAgent(Agent):
     # Initialization Function: Called one time when the game starts
@@ -171,9 +170,8 @@ class AStarAgent(Agent):
         return depth + admissibleHeuristic(state);
 
     def append(self, pq, node):
-        heap_node = (node[-1], node)
-        heapq.heappush(pq, heap_node)
+        pq.append(node)
 
     def pop(self, pq):
-        (f, node) = heapq.heappop(pq)
-        return node 
+        pq.sort(key = lambda node: -node[-1])
+        return pq.pop()
