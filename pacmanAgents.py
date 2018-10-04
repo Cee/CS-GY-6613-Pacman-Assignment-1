@@ -17,7 +17,6 @@ from game import Agent
 from heuristics import *
 import random
 import heapq
-from sets import Set
 
 class RandomAgent(Agent):
     # Initialization Function: Called one time when the game starts
@@ -71,8 +70,6 @@ class BFSAgent(Agent):
         # the path array as the next step
         queue = []
         queue.insert(0, [(Directions.STOP, state)])
-        # An empty set for storing state
-        explored = Set()
 
         path = self.bfs(queue, explored, Directions.STOP, [(Directions.STOP, state)])
         return path[1][0] if len(path) >= 2 else Directions.STOP
@@ -83,19 +80,16 @@ class BFSAgent(Agent):
         while len(queue) != 0:
             path = queue.pop()
             state = path[-1][1]
-            explored.add(state)
             if state.isLose():
                 continue
             for action in state.getLegalPacmanActions():
                 next_state = state.generatePacmanSuccessor(action)
                 next_path = path + [(action, next_state)]
-                if (next_state) and (next_state not in explored) \
-                    and (next_path not in queue):
+                if (next_state) and (next_path not in queue):
                     if next_state.isWin():
                         return next_path
                     queue.insert(0, next_path)
         return path
-
 
 class DFSAgent(Agent):
     # Initialization Function: Called one time when the game starts
@@ -116,10 +110,10 @@ class DFSAgent(Agent):
         stack = []
         stack.append([(Directions.STOP, state)])
 
-        path = self.dfs(stack, [(Directions.STOP, state)])
+        path = self.dfs(stack)
         return path[1][0] if len(path) >= 2 else Directions.STOP
 
-    def dfs(self, stack, init_path):
+    def dfs(self, stack):
         while len(stack) != 0:
             path = stack.pop()
             state = path[-1][1]
@@ -157,8 +151,8 @@ class AStarAgent(Agent):
 
         while len(pq) != 0:
             node = self.pop(pq)
-            s = node[0][-1]
-            d = node[-2]
+            s = node[0][-1] # current state
+            d = node[-2] # depth
             for action in s.getLegalPacmanActions():
                 next_state = s.generatePacmanSuccessor(action)
                 if next_state:
