@@ -202,8 +202,11 @@ class AStarAgent(Agent):
     # GetAction Function: Called with every frame
     def getAction(self, state):
 
-        # Ensure state is not None
+        # Ensure initial state is not None
         if not state:
+            return Directions.STOP
+        # Ensure initial state will not be in a lost
+        if state.isLose():
             return Directions.STOP
         # Goal test for initial state, which is the solution
         if state.isWin():
@@ -212,33 +215,43 @@ class AStarAgent(Agent):
         # f(n) = g(n) + h(n)
         # Use PriorityQueue
         pq = []
-        start = ([state], [], 0, self.f(0, state)) # (states, actions, g, f = g + h)
-        self.append(pq, start)
+
+        action = self.astar(pq, state)
+        return action
+
+    def astar(self, pq, init_state):
+        # Get initial actions for initial state
+        init_actions = init_state.getLegalPacmanActions()
+        g = 0                               # g: depth
+        h = admissibleHeuristic(init_state) # h: heruistic(state)
+        f = g + h
+        for action in init_actions:
+            # Tuple: (g, h, f, action, state)
+            self.append(pq, [(g, h, f, action, init_state)])
 
         while len(pq) != 0:
-            node = self.pop(pq)
-            s = node[0][-1] # current state
-            d = node[-2] # depth
-            for action in s.getLegalPacmanActions():
-                next_state = s.generatePacmanSuccessor(action)
-                if next_state:
-                    if next_state.isLose():
-                        continue
-                    if next_state.isWin():
-                        return node[1][0]
-                    next_node = (node[0] + [next_state], node[1] + [action], d + 1, self.f(d + 1, next_state))
-                    self.append(pq, next_node)
-                else:
-                    return node[1][0]
-
-        return Directions.STOP
-
-    def f(self, depth, state):
-        return depth + admissibleHeuristic(state);
+            path = pq[-1]
+            (depth, _, _, prev_action, prev_state) = path[-1]
+            curr_state = prev_state.generatePacmanSuccessor(prev_action)
+            if curr_state == None:
+                # Running out of `generatePacmanSuccessor`
+                # Current node has the minimum f(n)
+                return path[0][-2]
+            if curr_state.isWin():
+                return path[0][-2]
+            if curr_state.isLose():
+                _ = pq.pop()
+                continue
+            g = depth + 1
+            h = admissibleHeuristic(curr_state)
+            f = g + h
+            # No win or lose, generate next actions
+            curr_actions = curr_state.getLegalPacmanActions()
+            for action in curr_actions:
+                self.append(pq, path + [(g, h, f, action, curr_state)])
+            # Remove this node from the stack
+            _ = pq.pop()
 
     def append(self, pq, node):
         pq.append(node)
-
-    def pop(self, pq):
-        pq.sort(key = lambda node: -node[-1])
-        return pq.pop()
+        pq.sort(key = lambda node: -node[-1][2])
